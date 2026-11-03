@@ -20,7 +20,7 @@ html,body{margin:0;overflow:hidden;background:var(--card);color:var(--tx);font:1
 .hd b{font-size:20px;font-family:"Avenir Next Condensed","Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.2px}
 .hd span{font-size:14px;font-weight:600}
 .tabs{display:flex;gap:4px;background:rgba(255,255,255,.2);border-radius:12px;padding:4px}
-.tabs button{flex:1;border:0;background:none;color:#fff;font:inherit;font-weight:700;font-size:15px;padding:9px 4px;border-radius:9px}
+.tabs button{flex:1;border:0;background:none;color:#fff;font:inherit;font-weight:700;font-size:14px;padding:9px 4px;border-radius:9px}
 .tabs button.on{background:#fff;color:#0b6e36}
 #stage{flex:1;min-height:0;position:relative;margin-bottom:env(safe-area-inset-bottom,0px);background:var(--bg)}
 .view{position:absolute;top:0;left:0;right:0;bottom:0;display:none}
@@ -46,15 +46,17 @@ button.d{border-color:var(--bad);color:var(--bad)}
 <div id="top"><div class="hd"><b>Fwd Coach</b><span id="cat"></span></div><div class="tabs">
 <button id="b-carico" class="on" onclick="show('carico')">Carico</button>
 <button id="b-formazioni" onclick="show('formazioni')">Formazioni</button>
+<button id="b-test" onclick="show('test')">Test</button>
 <button id="b-rosa" onclick="show('rosa')">Rosa</button>
 </div></div>
 <div id="stage">
 <div class="view on" id="v-carico"><iframe id="fc" title="Carico squadra"></iframe></div>
 <div class="view" id="v-formazioni"><iframe id="ff" title="Formazioni"></iframe></div>
+<div class="view" id="v-test"><iframe id="ft" title="Test fisici"></iframe></div>
 <div class="view" id="v-rosa"></div>
 </div>
 <script>
-const KM='fwd_rosa_v1',KC='carico_squadra_v1',KF='fwd_formazioni_u14_v1';
+const KM='fwd_rosa_v1',KC='carico_squadra_v1',KF='fwd_formazioni_u14_v1',KT='fwd_test_v1';
 const $=id=>document.getElementById(id);
 const rd=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
 const wr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
@@ -67,8 +69,8 @@ function find(list,name,key){
  const ex=c.filter(e=>tk(e.name).join(' ')==tk(name).join(' '));
  return ex.length==1?ex[0]:(c.length==1?c[0]:null)}
 
-let tab='carico';const stale={carico:false,formazioni:false},rl={carico:0,formazioni:0};
-const fr={carico:$('fc'),formazioni:$('ff')};
+let tab='carico';const stale={carico:false,formazioni:false,test:false},rl={carico:0,formazioni:0,test:0};
+const fr={carico:$('fc'),formazioni:$('ff'),test:$('ft')};
 
 /* Rosa condivisa: ogni ragazzo ha un id comune e il collegamento
    al proprio id dentro Carico (c) e dentro Formazioni (f). */
@@ -92,17 +94,18 @@ function syncAll(){
  return out}
 
 function fresh(t){if(!stale[t])return;stale[t]=false;try{fr[t].contentWindow.location.reload()}catch(e){fr[t].src=fr[t].src}}
-function markBoth(){stale.carico=stale.formazioni=true}
+function markBoth(){stale.carico=stale.formazioni=stale.test=true}
+addEventListener('message',e=>{const d=e.data;if(d&&d.fwd=='stale'&&d.m in stale)stale[d.m]=true});
 function inject(f,n){try{const d=f.contentDocument;if(!d||d.getElementById('shx'))return;const s=d.createElement('style');s.id='shx';
  s.textContent='h1{display:none!important}.card:has(#rosa){display:none!important}nav{padding-bottom:0!important}'+(n=='carico'?'body{padding-bottom:72px!important}':'');d.head.appendChild(s)}catch(e){}}
 function onLoad(n){inject(fr[n],n);updCat();const o=syncAll();if(o.carico)stale.carico=true;if(o.formazioni)stale.formazioni=true;
  if(tab!='rosa'&&stale[tab]&&rl[tab]++<3)fresh(tab)}
-fr.carico.onload=()=>onLoad('carico');fr.formazioni.onload=()=>onLoad('formazioni');
+fr.carico.onload=()=>onLoad('carico');fr.formazioni.onload=()=>onLoad('formazioni');fr.test.onload=()=>onLoad('test');
 
 function updCat(){const C=rd(KC);$('cat').textContent=C&&C.cat?C.cat:''}
 addEventListener('storage',updCat);
 function show(t){tab=t;updCat();
- ['carico','formazioni','rosa'].forEach(k=>{$('v-'+k).classList.toggle('on',k==t);$('b-'+k).classList.toggle('on',k==t)});
+ ['carico','formazioni','test','rosa'].forEach(k=>{$('v-'+k).classList.toggle('on',k==t);$('b-'+k).classList.toggle('on',k==t)});
  if(t=='rosa')renderRosa();else fresh(t)}
 
 /* ---- scheda Rosa ---- */
@@ -111,7 +114,7 @@ function renderRosa(){const M=readM();
  ${M.list.map(e=>`<div class="rw"><input value="${esc(e.name)}" aria-label="Nome" onchange="ren('${e.id}',this.value)"><button class="x" aria-label="Elimina ${esc(e.name)}" onclick="delE('${e.id}')">×</button></div>`).join('')||'<p class="mut">Nessun ragazzo ancora: aggiungi il primo.</p>'}
  <div class="rw" style="margin-top:12px"><input id="nn" placeholder="Nome e cognome" aria-label="Nuovo ragazzo"><button class="p" onclick="addE()">Aggiungi</button></div>
  <button class="bt" onclick="sortE()">Ordina A–Z</button></div>
- <div class="card"><h2>Copia di sicurezza</h2><p class="mut">Salva rosa, sedute, voti e formazioni in un solo testo. Conservalo (ad esempio nelle Note). La versione aperta da Safari e quella aggiunta alla Home hanno memorie separate: per passare i dati da una all’altra usa Esporta e Importa.</p>
+ <div class="card"><h2>Copia di sicurezza</h2><p class="mut">Salva rosa, sedute, voti, formazioni e test in un solo testo. Conservalo (ad esempio nelle Note). La versione aperta da Safari e quella aggiunta alla Home hanno memorie separate: per passare i dati da una all’altra usa Esporta e Importa.</p>
  <textarea id="bk" placeholder="Qui compare il testo esportato. Incolla qui per importare."></textarea>
  <button class="bt" onclick="expAll()">Esporta tutto</button><button class="bt" onclick="copyAll()">Copia negli appunti</button><button class="bt" onclick="impAll()">Importa il testo incollato</button>
  <p class="mut" id="bm"></p></div>`}
@@ -127,17 +130,17 @@ function delE(id){const M=readM(),e=M.list.find(x=>x.id==id);
  const Fm=rd(KF);if(Fm&&Array.isArray(Fm.p)){Fm.p=Fm.p.filter(p=>p.id!=e.f);wr(KF,Fm)}
  markBoth();renderRosa()}
 const bm=t=>$('bm').textContent=t;
-function expAll(){const t=$('bk');t.value=JSON.stringify({m:rd(KM),c:rd(KC),f:rd(KF)});t.select();bm('Dati esportati nel riquadro.')}
+function expAll(){const t=$('bk');t.value=JSON.stringify({m:rd(KM),c:rd(KC),f:rd(KF),t:rd(KT)});t.select();bm('Dati esportati nel riquadro.')}
 function copyAll(){expAll();(navigator.clipboard?navigator.clipboard.writeText($('bk').value):Promise.reject()).then(()=>bm('Copiato negli appunti.')).catch(()=>bm('Copia non riuscita: tieni premuto sul testo e scegli Copia.'))}
 function impAll(){
- try{const j=JSON.parse($('bk').value);if(!j||typeof j!='object'||!(j.m||j.c||j.f))throw 0;
+ try{const j=JSON.parse($('bk').value);if(!j||typeof j!='object'||!(j.m||j.c||j.f||j.t))throw 0;
   if(!confirm('Sostituire i dati attuali con quelli incollati?'))return;
-  if(j.m)wr(KM,j.m);if(j.c)wr(KC,j.c);if(j.f)wr(KF,j.f);syncAll();markBoth();renderRosa();bm('Dati importati.')}
+  if(j.m)wr(KM,j.m);if(j.c)wr(KC,j.c);if(j.f)wr(KF,j.f);if(j.t)wr(KT,j.t);syncAll();markBoth();renderRosa();bm('Dati importati.')}
  catch(e){bm('Testo non valido: incolla un’esportazione di questa app.')}}
 
 /* ---- avvio ---- */
 syncAll();updCat();
-fr.carico.src='carico.html';fr.formazioni.src='formazioni.html';
+fr.carico.src='carico.html';fr.formazioni.src='formazioni.html';fr.test.src='test.html';
 
 /* ---- PWA: icona e manifest ---- */
 (()=>{try{const c=document.createElement('canvas');c.width=c.height=180;const x=c.getContext('2d');
