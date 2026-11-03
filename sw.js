@@ -1,5 +1,5 @@
 const C='fwd-coach-v1';
-const FILES=['./','index.html','carico.html','formazioni.html'];
+const FILES=['./','index.html','carico.html','formazioni.html','test.html'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>Promise.all(FILES.map(f=>c.add(f).catch(()=>{})))))});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{
