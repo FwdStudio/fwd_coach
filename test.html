@@ -65,11 +65,12 @@ const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?nul
 const T={
  sprint:{n:'Sprint 20 m',u:'s',lo:true,dec:2,err:.2,min:2.5,max:6,hint:'Tempo in secondi (es. 3,45). Partenza da fermo dalla stessa linea, stesso terreno, stesso modo di far partire il cronometro.'},
  yoyo:{n:'Yo-Yo (resistenza)',u:'m',lo:false,dec:0,err:40,min:40,max:2400,hint:'Distanza totale raggiunta in metri (multipli di 40: ogni andata e ritorno vale 40 m).'},
- slalom:{n:'Agilità (slalom)',u:'s',lo:true,dec:2,err:.3,min:6,max:30,hint:'Tempo in secondi del percorso a slalom. Stesso tracciato, stessa distanza tra i coni ogni volta.'}};
+ slalom:{n:'Agilità (slalom)',u:'s',lo:true,dec:2,err:.3,min:6,max:30,hint:'Tempo in secondi del percorso a slalom. Stesso tracciato, stessa distanza tra i coni ogni volta.'},
+ cooper:{n:'Cooper (12 min)',u:'m',lo:false,dec:0,err:50,min:800,max:3800,hint:'Corsa continua di 12 minuti su un percorso di lunghezza nota (pista, o giro del campo). Scrivi la distanza totale in metri, compreso l’ultimo giro parziale. Stesso percorso e stesso orario ogni volta, e invita i ragazzi a mantenere un ritmo costante.'}};
 const fv=(k,v)=>v==null?'—':(T[k].dec?v.toFixed(T[k].dec).replace('.',','):String(Math.round(v)));
 let S=loadS(),view='nuovo',ty='sprint',rv='sprint',pl='',msg='';
-let F={date:fmtD(new Date()),note:'',r:{sprint:{},yoyo:{},slalom:{}}};
-function loadS(){const d={tests:[],err:{sprint:.2,yoyo:40,slalom:.3}},j=rd(KT);return j&&Array.isArray(j.tests)?{tests:j.tests,err:{...d.err,...(j.err||{})}}:d}
+let F={date:fmtD(new Date()),note:'',r:{sprint:{},yoyo:{},slalom:{},cooper:{}}};
+function loadS(){const d={tests:[],err:{sprint:.2,yoyo:40,slalom:.3,cooper:50}},j=rd(KT);return j&&Array.isArray(j.tests)?{tests:j.tests,err:{...d.err,...(j.err||{})}}:d}
 const save=()=>wr(KT,S);
 const roster=()=>{const M=rd(KM);return M&&Array.isArray(M.list)?M.list:[]};
 const nameOf=id=>{const e=roster().find(x=>x.id==id);return e?e.name:null};
