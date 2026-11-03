@@ -233,7 +233,8 @@ function vYoyo(){
  <p class="mut">Controllo: al primo livello ogni 20 m deve durare ${L1} s.</p></div>
  <div class="card"><h3>Prima di partire</h3><p class="mut">Alza il volume e togli il silenzioso. Imposta Blocco automatico su Mai e non uscire dall’app: se lo schermo si spegne, la traccia si ferma.</p><button onclick="yTest()">Prova il suono</button></div>
  <div class="card"><h3>Chi partecipa</h3><div class="chips" style="flex-wrap:wrap">${R.map(e=>`<button class="chip${Y.on[e.id]?' on':''}" onclick="Y.on['${e.id}']=!Y.on['${e.id}'];render()">${esc(e.name)}</button>`).join('')}</div></div>
- <button class="p" style="width:100%" onclick="yStart()">Avvia la traccia</button>`}
+ <button class="p" style="width:100%" onclick="yStart()">Avvia la traccia</button>
+ <div class="card" style="margin-top:12px"><h3>Hai già i risultati?</h3><p class="mut">Se hai usato un’altra traccia o un’app esterna, scrivi a mano i metri di ogni ragazzo. Finiscono nello stesso storico del Yo-Yo.</p><button style="width:100%" onclick="ty='yoyo';msg='';view='nuovo';render();scrollTo(0,0)">Inserisci i risultati a mano</button></div>`}
 
 /* ---------- Shell ---------- */
 function render(){
