@@ -64,7 +64,7 @@ const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
 const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?null:n};
 const T={
  sprint:{n:'Sprint 20 m',u:'s',lo:true,dec:2,err:.2,min:2.5,max:6,hint:'Tempo in secondi (es. 3,45). Partenza da fermo dalla stessa linea, stesso terreno, stesso modo di far partire il cronometro.'},
- yoyo:{n:'Yo-Yo (resistenza)',u:'m',lo:false,dec:0,err:40,min:40,max:2400,hint:'Distanza totale raggiunta in metri (multipli di 40: ogni andata e ritorno vale 40 m).'},
+ yoyo:{n:'Yo-Yo (resistenza)',u:'m',lo:false,dec:0,err:40,min:40,max:2400,hint:'Distanza totale raggiunta in metri (multipli di 40: ogni andata e ritorno vale 40 m). Con la scheda Yo-Yo l’app suona la traccia e segna le distanze da sola.'},
  slalom:{n:'Agilità (slalom)',u:'s',lo:true,dec:2,err:.3,min:6,max:30,hint:'Tempo in secondi del percorso a slalom. Stesso tracciato, stessa distanza tra i coni ogni volta.'},
  cooper:{n:'Cooper (12 min)',u:'m',lo:false,dec:0,err:50,min:800,max:3800,hint:'Corsa continua di 12 minuti su un percorso di lunghezza nota (pista, o giro del campo). Scrivi la distanza totale in metri, compreso l’ultimo giro parziale. Stesso percorso e stesso orario ogni volta, e invita i ragazzi a mantenere un ritmo costante.'}};
 const fv=(k,v)=>v==null?'—':(T[k].dec?v.toFixed(T[k].dec).replace('.',','):String(Math.round(v)));
@@ -165,11 +165,82 @@ function vGio(){
   let ch='';if(pts.length>1){const c=cmp(k,vs[0],l);ch=` · dalla prima volta <span class="s-${c.st}">${arrow(c.st)} ${sd(k,c.d)}</span>`}
   return`<div class="card"><h3>${T[k].n}</h3><p>Ultimo <b>${fv(k,l)} ${T[k].u}</b> · migliore <b>${fv(k,best)}</b>${ch}</p>${pts.length>1?line(pts.slice(-8),k):'<p class="mut">Serve un secondo test per vedere l’andamento.</p>'}</div>`}).join('')}`}
 
+
+/* ---------- Yo-Yo: traccia dell'app (protocollo IR1 pubblicato, Bangsbo et al. 2008) ---------- */
+const SPL=[5,9,11,12,13,14,15,16,17,18,19,20,21,22,23];
+const SPD=[[10,1],[12,1],[13,2],[13.5,3],[14,4]];for(let v=14.5;v<=19;v+=.5)SPD.push([v,8]);
+const SH=[];let _t=0;
+SPD.forEach(([v,n],li)=>{for(let k=0;k<n;k++){const L=20/(v/3.6);SH.push({v,lv:SPL[li],k:k+1,n,up:k==0&&li>0,s:_t,g:_t+L,e:_t+2*L});_t+=2*L+10}});
+const Y={state:'setup',on:null,out:{},part:[],ctx:null,base:0,ev:[],idx:0,t1:null,t2:null,wl:null,sil:null};
+function yEvents(){const ev=[[-3,'tick'],[-2,'tick'],[-1,'tick']];SH.forEach(s=>{ev.push([s.s,s.up?'up':'via'],[s.g,'giro'],[s.e,'giro'])});ev.push([SH[SH.length-1].e+.5,'fine']);return ev}
+function yBeep(t,f,d){const c=Y.ctx,o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.9,t+.01);g.gain.setValueAtTime(.9,t+d-.03);g.gain.linearRampToValueAtTime(0,t+d);
+ o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.02)}
+function ySound(t,k){
+ if(k=='tick')yBeep(t,700,.12);
+ else if(k=='via'){yBeep(t,1200,.12);yBeep(t+.2,1200,.12)}
+ else if(k=='up'){yBeep(t,800,.1);yBeep(t+.15,1000,.1);yBeep(t+.3,1250,.1)}
+ else if(k=='giro')yBeep(t,900,.25);
+ else if(k=='fine')yBeep(t,600,.6)}
+function ySilent(){const n=8000,b=new DataView(new ArrayBuffer(44+n)),w=(o,s)=>[...s].forEach((c,i)=>b.setUint8(o+i,c.charCodeAt(0)));
+ w(0,'RIFF');b.setUint32(4,36+n,true);w(8,'WAVEfmt ');b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,1,true);b.setUint32(24,8000,true);b.setUint32(28,8000,true);b.setUint16(32,1,true);b.setUint16(34,8,true);w(36,'data');b.setUint32(40,n,true);
+ for(let i=0;i<n;i++)b.setUint8(44+i,128);const a=new Audio(URL.createObjectURL(new Blob([b],{type:'audio/wav'})));a.loop=true;return a}
+async function yCtx(){const AC=window.AudioContext||window.webkitAudioContext;if(!AC){alert('Questo browser non supporta l’audio necessario.');return null}
+ const c=new AC();try{await c.resume()}catch(e){}try{Y.sil=ySilent();Y.sil.play().catch(()=>{})}catch(e){}return c}
+async function yTest(){Y.ctx=await yCtx();if(!Y.ctx)return;const c=Y.ctx;ySound(c.currentTime+.1,'via');ySound(c.currentTime+.9,'giro');setTimeout(()=>{try{c.close();Y.sil&&Y.sil.pause()}catch(e){}},2500)}
+function yState(){const e=Y.ctx.currentTime-Y.base;if(e<0)return{ph:'cd',e,done:0,cd:-e};
+ const last=SH[SH.length-1];if(e>=last.e)return{ph:'fine',e,done:SH.length};
+ let i=0;while(i+1<SH.length&&SH[i+1].s<=e)i++;const s=SH[i],ph=e<s.g?'andata':e<s.e?'ritorno':'recupero';
+ return{ph,e,i,s,done:e>=s.e?i+1:i,nx:ph=='recupero'&&SH[i+1]?SH[i+1].s-e:0}}
+function ySched(){const c=Y.ctx;while(Y.idx<Y.ev.length&&Y.base+Y.ev[Y.idx][0]<c.currentTime+1.5){ySound(Y.base+Y.ev[Y.idx][0],Y.ev[Y.idx][1]);Y.idx++}}
+async function yStart(){
+ const R=roster().filter(e=>Y.on[e.id]);if(!R.length){alert('Seleziona almeno un ragazzo.');return}
+ Y.ctx=await yCtx();if(!Y.ctx)return;
+ try{if(navigator.wakeLock)Y.wl=await navigator.wakeLock.request('screen')}catch(e){}
+ Y.ev=yEvents();Y.idx=0;Y.out={};Y.part=R;Y.base=Y.ctx.currentTime+4.5;Y.state='run';yRunUI();
+ Y.t1=setInterval(ySched,200);Y.t2=setInterval(yTick,100);ySched()}
+function yRunUI(){
+ $('nav').style.display='none';
+ $('app').innerHTML=`<div class="card ok" style="text-align:center"><div class="mut" id="y-ph">—</div><div style="font-size:46px;font-weight:700;line-height:1.1" id="y-di">0 m</div><div class="mut" id="y-lv"></div></div>
+ <div class="card"><h3>Ha mollato</h3><p class="mut">Tocca il nome quando un ragazzo esce: si segna la distanza delle navette completate. Tocca di nuovo per annullare.</p><div class="chips" style="flex-wrap:wrap" id="y-pl">${Y.part.map(e=>`<button class="chip" id="yp${e.id}" onclick="yOut('${e.id}')">${esc(e.name)}</button>`).join('')}</div></div>
+ <button class="d" style="width:100%" onclick="if(confirm('Terminare il test?'))yEnd()">Termina il test</button>`}
+function yOut(id){const b=$('yp'+id),nm=nameOf(id)||'';
+ if(Y.out[id]!=null){delete Y.out[id];b.className='chip';b.textContent=nm}
+ else{const d=yState().done*40;Y.out[id]=d;b.className='chip on';b.textContent=nm+' · '+d+' m'}}
+function yTick(){if(Y.state!='run')return;const s=yState(),ph=$('y-ph'),di=$('y-di'),lv=$('y-lv');if(!ph)return;
+ const left=Y.part.filter(e=>Y.out[e.id]==null).length;
+ if(s.ph=='cd'){ph.textContent='Si parte tra '+Math.ceil(s.cd)+'…';di.textContent='0 m';lv.textContent='In gara: '+left}
+ else if(s.ph=='fine'){yEnd()}
+ else{ph.textContent={andata:'ANDATA',ritorno:'RITORNO',recupero:'RECUPERO '+Math.ceil(s.nx)+' s'}[s.ph];
+  di.textContent=s.done*40+' m';lv.textContent='Livello '+s.s.lv+' · navetta '+s.s.k+'/'+s.s.n+' · '+String(s.s.v).replace('.',',')+' km/h · in gara: '+left}}
+function yEnd(){
+ if(Y.state!='run')return;
+ const d=yState().done*40;
+ clearInterval(Y.t1);clearInterval(Y.t2);
+ try{Y.ctx.close()}catch(e){}try{Y.sil&&Y.sil.pause()}catch(e){}try{Y.wl&&Y.wl.release()}catch(e){}
+ F.r.yoyo={};let still=0;
+ Y.part.forEach(e=>{const v=Y.out[e.id];if(v==null){still++;F.r.yoyo[e.id]=d>0?String(d):''}else F.r.yoyo[e.id]=v>0?String(v):''});
+ Y.state='setup';$('nav').style.display='';ty='yoyo';view='nuovo';F.date=fmtD(new Date());F.note='Traccia Yo-Yo dell’app';
+ msg='Test terminato. Controlla le distanze e premi Salva test.'+(still?` ${still} ${still==1?'ragazzo era':'ragazzi erano'} ancora in gara: ho messo ${d} m, la distanza al momento dello stop.`:'')+' Chi è uscito prima di completare una navetta resta vuoto.';
+ render();scrollTo(0,0)}
+function vYoyo(){
+ const R=roster();if(!R.length)return`<div class="card">Nessun ragazzo in rosa. Aggiungili dalla scheda Rosa di Fwd Coach.</div>`;
+ if(!Y.on)Y.on={};R.forEach(e=>{if(Y.on[e.id]==null)Y.on[e.id]=true});
+ const L1=(20/(10/3.6)).toFixed(1).replace('.',',');
+ return`<div class="card"><h2>Traccia Yo-Yo dell’app</h2>
+ <p class="mut">Segue il protocollo Yo-Yo IR1 pubblicato (Bangsbo e colleghi, 2008): navette di 2 × 20 m con 10 secondi di recupero attivo e velocità crescente da 10 a 19 km/h. Registra da sola la distanza di ogni ragazzo quando tocchi il suo nome.</p>
+ <p class="mut">Campo: tre linee a 0, 5 e 25 m. Si parte con un piede sulla linea dei 5 m, si corre fino ai 25 m e si torna. Nei 10 secondi di recupero si trotta fino alla linea dei 0 m e si torna ai 5 m.</p>
+ <p class="mut">Controllo: al primo livello ogni 20 m deve durare ${L1} s.</p></div>
+ <div class="card"><h3>Prima di partire</h3><p class="mut">Alza il volume e togli il silenzioso. Imposta Blocco automatico su Mai e non uscire dall’app: se lo schermo si spegne, la traccia si ferma.</p><button onclick="yTest()">Prova il suono</button></div>
+ <div class="card"><h3>Chi partecipa</h3><div class="chips" style="flex-wrap:wrap">${R.map(e=>`<button class="chip${Y.on[e.id]?' on':''}" onclick="Y.on['${e.id}']=!Y.on['${e.id}'];render()">${esc(e.name)}</button>`).join('')}</div></div>
+ <button class="p" style="width:100%" onclick="yStart()">Avvia la traccia</button>`}
+
 /* ---------- Shell ---------- */
 function render(){
- const V={nuovo:vNuovo,risultati:vRis,giocatore:vGio};
+ if(Y.state=='run')return;
+ const V={nuovo:vNuovo,risultati:vRis,giocatore:vGio,yoyo:vYoyo};
  $('app').innerHTML=V[view]();
- $('nav').innerHTML=[['nuovo','Nuovo'],['risultati','Risultati'],['giocatore','Giocatore']].map(([k,l])=>`<button class="${k==view?'on':''}" onclick="view='${k}';${k=='risultati'?'':'msg=\'\';'}render();scrollTo(0,0)">${l}</button>`).join('')}
+ $('nav').innerHTML=[['nuovo','Nuovo'],['risultati','Risultati'],['giocatore','Giocatore'],['yoyo','Yo-Yo']].map(([k,l])=>`<button class="${k==view?'on':''}" onclick="view='${k}';${k=='risultati'?'':'msg=\'\';'}render();scrollTo(0,0)">${l}</button>`).join('')}
 if(window.top!==window)document.body.classList.add('emb');
 render();
 </script>
