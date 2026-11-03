@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b8f45">
+<title>Test fisici</title>
+<style>
+:root{--bg:#e6f6ec;--card:#fff;--tx:#10231a;--mut:#4f6a5a;--ac:#0b8f45;--ac2:#d6f3e0;--line:#bfe3cb;--ok:#12a150;--warn:#f5a300;--bad:#e5383b;box-sizing:border-box}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1510;--card:#14231b;--tx:#eaf7ef;--mut:#9fc2ad;--ac:#34d399;--ac2:#17382a;--line:#26452f}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 84px)}
+body.emb{padding-top:12px;padding-bottom:84px}
+main{max-width:640px;margin:0 auto}
+h1,h2,h3{font-family:"Avenir Next Condensed","Barlow Condensed","Arial Narrow",sans-serif;margin:0 0 8px;letter-spacing:.2px}
+h1{font-size:24px}h2{font-size:21px}h3{font-size:17px}
+body.emb h1{display:none}
+.card{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--ac);border-radius:12px;padding:12px;margin-bottom:12px}
+.ok{border-color:var(--ok);background:var(--ac2)}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:8px}
+input,select,button{font:inherit;color:inherit}
+input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-top:3px}
+button{padding:10px 14px;border:1px solid var(--ac);background:transparent;color:var(--ac);border-radius:8px;font-weight:600}
+button.p{background:var(--ac);color:#fff}
+@media(prefers-color-scheme:dark){button.p{color:#06140d}}
+button.d{border-color:var(--bad);color:var(--bad)}
+button.x{padding:4px 10px;border-color:var(--line);color:var(--mut)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px}
+.chip{flex:none;border-color:var(--line);background:var(--card);color:var(--tx);border-radius:20px;padding:8px 13px}
+.chip.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+@media(prefers-color-scheme:dark){.chip.on{color:#06140d}}
+.pl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border-top:1px solid var(--line)}
+.pl input{width:100px;margin:0;text-align:center}
+.mut{color:var(--mut);font-size:13px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0)}
+nav button{flex:1;border:0;border-radius:0;padding:14px 4px;color:var(--mut)}
+nav button.on{color:var(--ac);box-shadow:inset 0 3px 0 var(--ac)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:6px 3px;border-top:1px solid var(--line);text-align:left}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.s-ok{color:var(--ok)}.s-bad{color:var(--bad)}.s-eq{color:var(--mut)}
+.s-ok,.s-bad{font-weight:700}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--mut);font-size:9px;font-family:inherit}
+</style>
+</head>
+<body>
+<main><h1>Test fisici</h1><div id="app"></div></main>
+<nav id="nav"></nav>
+<script>
+const KT='fwd_test_v1',KM='fwd_rosa_v1',KF='fwd_formazioni_u14_v1';
+const rd=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
+const wr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const p2=n=>String(n).padStart(2,'0');
+const fmtD=d=>d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+const dm=s=>s.slice(8)+'/'+s.slice(5,7);
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?null:n};
+const T={
+ sprint:{n:'Sprint 20 m',u:'s',lo:true,dec:2,err:.2,min:2.5,max:6,hint:'Tempo in secondi (es. 3,45). Partenza da fermo dalla stessa linea, stesso terreno, stesso modo di far partire il cronometro.'},
+ yoyo:{n:'Yo-Yo (resistenza)',u:'m',lo:false,dec:0,err:40,min:40,max:2400,hint:'Distanza totale raggiunta in metri (multipli di 40: ogni andata e ritorno vale 40 m).'},
+ slalom:{n:'Agilità (slalom)',u:'s',lo:true,dec:2,err:.3,min:6,max:30,hint:'Tempo in secondi del percorso a slalom. Stesso tracciato, stessa distanza tra i coni ogni volta.'}};
+const fv=(k,v)=>v==null?'—':(T[k].dec?v.toFixed(T[k].dec).replace('.',','):String(Math.round(v)));
+let S=loadS(),view='nuovo',ty='sprint',rv='sprint',pl='',msg='';
+let F={date:fmtD(new Date()),note:'',r:{sprint:{},yoyo:{},slalom:{}}};
+function loadS(){const d={tests:[],err:{sprint:.2,yoyo:40,slalom:.3}},j=rd(KT);return j&&Array.isArray(j.tests)?{tests:j.tests,err:{...d.err,...(j.err||{})}}:d}
+const save=()=>wr(KT,S);
+const roster=()=>{const M=rd(KM);return M&&Array.isArray(M.list)?M.list:[]};
+const nameOf=id=>{const e=roster().find(x=>x.id==id);return e?e.name:null};
+const ofType=k=>S.tests.filter(x=>x.type==k).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
+function cmp(k,a,b){const d=b-a;if(Math.abs(d)<=S.err[k]+1e-9)return{d,st:'eq'};const better=T[k].lo?d<0:d>0;return{d,st:better?'ok':'bad'}}
+const sd=(k,d)=>(d>0?'+':d<0?'−':'')+fv(k,Math.abs(d)).replace(/^—$/,'0')+' '+T[k].u;
+const arrow=st=>st=='ok'?'▲':st=='bad'?'▼':'≈';
+const teamAvg=(t)=>avg(Object.entries(t.res).filter(([id])=>nameOf(id)).map(([,v])=>v));
+
+function line(pts,k){
+ const W=340,L=16,R=324,T0=16,B=118,vs=pts.map(p=>p.v),mn=Math.min(...vs),mx=Math.max(...vs),pad=(mx-mn)*.25||Math.abs(mx)*.05||1,a=mn-pad,b=mx+pad;
+ const y=v=>{const q=(v-a)/(b-a);return T[k].lo?T0+(B-T0)*q:B-(B-T0)*q},x=i=>pts.length==1?(L+R)/2:L+(R-L)*i/(pts.length-1);
+ const path=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
+ return`<svg viewBox="0 0 ${W} 138" role="img" aria-label="Andamento ${T[k].n}"><path d="${path}" fill="none" style="stroke:var(--ac);stroke-width:2.5"/>${pts.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="4" style="fill:var(--ac)"/><text x="${x(i).toFixed(1)}" y="${(y(p.v)-8).toFixed(1)}" text-anchor="middle" style="fill:var(--tx);font-weight:700">${fv(k,p.v)}</text><text x="${x(i).toFixed(1)}" y="134" text-anchor="middle">${p.l}</text>`).join('')}</svg><div class="mut">In alto = meglio${T[k].lo?' (tempo più basso)':''}.</div>`}
+
+/* ---------- Nuovo ---------- */
+function vNuovo(){
+ const R=roster(),t=T[ty];
+ return`${msg?`<div class="card ok">${msg}</div>`:''}
+ <div class="chips">${Object.keys(T).map(k=>`<button class="chip${k==ty?' on':''}" onclick="ty='${k}';msg='';render()">${T[k].n}</button>`).join('')}</div>
+ <div class="card"><h2>${t.n}</h2><p class="mut">${t.hint}</p>
+ <label>Data<input type="date" value="${F.date}" onchange="F.date=this.value"></label>
+ <label>Note (campo, condizioni, chi misura)<input value="${esc(F.note)}" oninput="F.note=this.value" placeholder="es. sintetico, asciutto"></label></div>
+ <div class="card"><h3>Risultati (${t.u})</h3>
+ ${R.length?R.map(e=>`<div class="pl"><span>${esc(e.name)}</span><input type="text" inputmode="decimal" placeholder="—" value="${esc(F.r[ty][e.id]||'')}" oninput="F.r['${ty}']['${e.id}']=this.value" aria-label="Risultato ${esc(e.name)}"></div>`).join(''):'<p class="mut">Nessun ragazzo in rosa. Aggiungili dalla scheda Rosa di Fwd Coach.</p>'}
+ <p class="mut">Lascia vuoto chi era assente: non conta.</p></div>
+ <button class="p" style="width:100%" onclick="saveT()">Salva test</button>`}
+function saveT(){
+ const t=T[ty],res={},bad=[];
+ roster().forEach(e=>{const raw=F.r[ty][e.id];if(raw==null||String(raw).trim()==='')return;const v=num(raw);if(v==null||v<=0)bad.push(e.name);else res[e.id]=v});
+ if(bad.length){alert('Controlla i valori di: '+bad.join(', '));return}
+ const n=Object.keys(res).length;
+ if(!n){alert('Inserisci almeno un risultato.');return}
+ if(!F.date){alert('Inserisci la data.');return}
+ const odd=Object.entries(res).filter(([,v])=>v<t.min||v>t.max).map(([id])=>nameOf(id));
+ if(odd.length&&!confirm('Valori insoliti per: '+odd.join(', ')+'. Salvare comunque?'))return;
+ const rec={id:'t'+Date.now()+Math.random().toString(36).slice(2,5),type:ty,date:F.date,note:F.note,res};
+ S.tests.push(rec);save();
+ const arr=ofType(ty),i=arr.findIndex(x=>x.id==rec.id),prev=i>0?arr[i-1]:null;
+ let s=`Test salvato: ${n} ${n==1?'ragazzo':'ragazzi'}, media <b>${fv(ty,teamAvg(rec))} ${t.u}</b>.`;
+ if(prev){const both=Object.keys(res).filter(id=>prev.res[id]!=null);
+  if(both.length){const c=cmp(ty,avg(both.map(id=>prev.res[id])),avg(both.map(id=>res[id])));
+   s+=` Rispetto al ${dm(prev.date)} la squadra è <span class="s-${c.st}">${c.st=='ok'?'migliorata':c.st=='bad'?'peggiorata':'invariata (entro il margine di errore)'}</span> (${sd(ty,c.d)}).`}}
+ F.r[ty]={};F.note='';msg=s;rv=ty;render();scrollTo(0,0)}
+
+/* ---------- Risultati ---------- */
+function propose(k){
+ const arr=ofType(k),last=arr[arr.length-1];if(!last||k=='slalom')return null;
+ const ent=Object.entries(last.res).filter(([id])=>nameOf(id));if(ent.length<3)return null;
+ const vs=ent.map(([,v])=>v),mn=Math.min(...vs),mx=Math.max(...vs);
+ return ent.map(([id,v])=>{let q=mx==mn?.5:(v-mn)/(mx-mn);if(T[k].lo)q=1-q;return{id,score:Math.round(3+6*q)}})}
+function curVote(id,idx){const M=rd(KM),K=rd(KF),e=M&&M.list.find(x=>x.id==id),fp=e&&e.f!=null&&K&&K.p.find(q=>q.id==e.f);return fp?fp.a[idx]:null}
+function vRis(){
+ const t=T[rv],arr=ofType(rv),chips=`<div class="chips">${Object.keys(T).map(k=>`<button class="chip${k==rv?' on':''}" onclick="rv='${k}';msg='';render()">${T[k].n}</button>`).join('')}</div>`;
+ const sets=`<div class="card"><h3>Margine di errore</h3><p class="mut">Le variazioni più piccole di questo valore sono segnate ≈ perché non affidabili (il cronometro a mano sbaglia di circa 0,2 s).</p>${Object.keys(T).map(k=>`<label>${T[k].n} (${T[k].u})<input type="text" inputmode="decimal" value="${fv(k,S.err[k])}" onchange="setErr('${k}',this.value)"></label>`).join('')}</div>`;
+ if(!arr.length)return`${msg?`<div class="card ok">${msg}</div>`:''}${chips}<div class="card">Nessun test registrato per ${t.n}. Inseriscine uno dalla scheda Nuovo.</div>${sets}`;
+ const last=arr[arr.length-1],prev=arr.length>1?arr[arr.length-2]:null,R=roster().filter(e=>last.res[e.id]!=null);
+ const trend=arr.slice(-8).map(x=>({v:teamAvg(x),l:dm(x.date)}));
+ const pr=propose(rv),idx=rv=='sprint'?0:1;
+ return`${msg?`<div class="card ok">${msg}</div>`:''}${chips}
+ <div class="card"><h2>Media squadra</h2>${line(trend,rv)}</div>
+ <div class="card"><h2>Ultimo test: ${dm(last.date)}</h2>${last.note?`<p class="mut">${esc(last.note)}</p>`:''}
+ <table><tr><th>Nome</th><th class="n">Ora</th><th class="n">${prev?dm(prev.date):'Prima'}</th><th class="n">Variazione</th></tr>
+ ${R.map(e=>{const v=last.res[e.id],p=prev?prev.res[e.id]:null;let c='<span class="s-eq">—</span>';
+  if(p!=null){const q=cmp(rv,p,v);c=`<span class="s-${q.st}">${arrow(q.st)} ${sd(rv,q.d)}</span>`}
+  return`<tr><td>${esc(e.name)}</td><td class="n"><b>${fv(rv,v)}</b></td><td class="n">${fv(rv,p)}</td><td class="n">${c}</td></tr>`}).join('')}</table>
+ <p class="mut">▲ migliorato, ▼ peggiorato, ≈ variazione entro il margine di errore (±${fv(rv,S.err[rv])} ${t.u}).</p></div>
+ ${pr?`<div class="card"><h3>Aggiorna il voto in Formazioni</h3><p class="mut">Propone il voto ${rv=='sprint'?'Velocità':'Resistenza'} (da 3 a 9) confrontando i ragazzi tra loro. A questa età conta anche la maturazione fisica: usalo come spunto e correggilo se lo conosci meglio.</p>
+ <table><tr><th>Nome</th><th class="n">Attuale</th><th class="n">Proposto</th></tr>${pr.map(x=>`<tr><td>${esc(nameOf(x.id))}</td><td class="n">${curVote(x.id,idx)==null?'—':curVote(x.id,idx)}</td><td class="n"><b>${x.score}</b></td></tr>`).join('')}</table>
+ <button class="p" style="width:100%;margin-top:10px" onclick="applyForm('${rv}')">Applica a Formazioni</button></div>`:''}
+ <div class="card"><h3>Test registrati</h3>${arr.slice().reverse().map(x=>`<div class="pl"><span>${dm(x.date)} · ${Object.keys(x.res).filter(id=>nameOf(id)).length} ragazzi${x.note?' · '+esc(x.note):''}</span><button class="x d" aria-label="Elimina test" onclick="delT('${x.id}')">×</button></div>`).join('')}</div>${sets}`}
+function setErr(k,v){const n=num(v);if(n!=null&&n>0){S.err[k]=n;save()}render()}
+function delT(id){if(confirm('Eliminare questo test?')){S.tests=S.tests.filter(x=>x.id!=id);save();render()}}
+function applyForm(k){
+ const p=propose(k),M=rd(KM),K=rd(KF),idx=k=='sprint'?0:1;
+ if(!p||!M||!K){alert('Apri prima la scheda Formazioni almeno una volta.');return}
+ const tg=p.map(x=>{const e=M.list.find(y=>y.id==x.id),fp=e&&e.f!=null?K.p.find(q=>q.id==e.f):null;return fp?{fp,s:x.score}:null}).filter(Boolean);
+ if(!tg.length){alert('Nessun ragazzo collegato a Formazioni.');return}
+ if(!confirm('Aggiornare '+(idx?'Resistenza':'Velocità')+' di '+tg.length+' ragazzi in Formazioni?'))return;
+ tg.forEach(x=>{x.fp.a[idx]=x.s});wr(KF,K);
+ try{parent.postMessage({fwd:'stale',m:'formazioni'},'*')}catch(e){}
+ msg='Voti '+(idx?'Resistenza':'Velocità')+' aggiornati in Formazioni ('+tg.length+' ragazzi).';render();scrollTo(0,0)}
+
+/* ---------- Giocatore ---------- */
+function vGio(){
+ const R=roster();if(!R.length)return`<div class="card">Nessun ragazzo in rosa. Aggiungili dalla scheda Rosa di Fwd Coach.</div>`;
+ if(!pl||!R.find(e=>e.id==pl))pl=R[0].id;
+ return`<div class="card"><label>Ragazzo<select onchange="pl=this.value;render()">${R.map(e=>`<option value="${e.id}" ${e.id==pl?'selected':''}>${esc(e.name)}</option>`).join('')}</select></label></div>
+ ${Object.keys(T).map(k=>{const pts=ofType(k).filter(x=>x.res[pl]!=null).map(x=>({v:x.res[pl],l:dm(x.date)}));
+  if(!pts.length)return`<div class="card"><h3>${T[k].n}</h3><p class="mut">Nessun risultato.</p></div>`;
+  const vs=pts.map(p=>p.v),best=T[k].lo?Math.min(...vs):Math.max(...vs),l=vs[vs.length-1];
+  let ch='';if(pts.length>1){const c=cmp(k,vs[0],l);ch=` · dalla prima volta <span class="s-${c.st}">${arrow(c.st)} ${sd(k,c.d)}</span>`}
+  return`<div class="card"><h3>${T[k].n}</h3><p>Ultimo <b>${fv(k,l)} ${T[k].u}</b> · migliore <b>${fv(k,best)}</b>${ch}</p>${pts.length>1?line(pts.slice(-8),k):'<p class="mut">Serve un secondo test per vedere l’andamento.</p>'}</div>`}).join('')}`}
+
+/* ---------- Shell ---------- */
+function render(){
+ const V={nuovo:vNuovo,risultati:vRis,giocatore:vGio};
+ $('app').innerHTML=V[view]();
+ $('nav').innerHTML=[['nuovo','Nuovo'],['risultati','Risultati'],['giocatore','Giocatore']].map(([k,l])=>`<button class="${k==view?'on':''}" onclick="view='${k}';${k=='risultati'?'':'msg=\'\';'}render();scrollTo(0,0)">${l}</button>`).join('')}
+if(window.top!==window)document.body.classList.add('emb');
+render();
+</script>
+</body>
+</html>
